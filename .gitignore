@@ -386,3 +386,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# for this project particularly
+08_cloth.dir/
