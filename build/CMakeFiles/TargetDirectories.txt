@@ -1,0 +1,3 @@
+/Users/jingyili/Documents/ip-paris/courses_taken/X-INF585-Animation/lab/code_inf585/scenes/inf585/INF585-project/build/CMakeFiles/INF585-project.dir
+/Users/jingyili/Documents/ip-paris/courses_taken/X-INF585-Animation/lab/code_inf585/scenes/inf585/INF585-project/build/CMakeFiles/edit_cache.dir
+/Users/jingyili/Documents/ip-paris/courses_taken/X-INF585-Animation/lab/code_inf585/scenes/inf585/INF585-project/build/CMakeFiles/rebuild_cache.dir
