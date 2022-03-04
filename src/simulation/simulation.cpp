@@ -127,7 +127,7 @@ void fall_sphere_update(cloth_structure& cloth, particle_structure& falling_sphe
         falling_sphere.v = (1 - 0.9f * dt) * falling_sphere.v + dt * f;
         falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
         //std::cout << "no extension, v=" << falling_sphere.v << std::endl;
-
+        parameters.need_collision_detect = dot(cloth.surface_normal, falling_sphere.v) <= 0; // if sphere is moving forward to the cloth plane
     }
     else {
         // TODO: simplify gaussian function just one line to handle different direction
@@ -148,41 +148,15 @@ void fall_sphere_update(cloth_structure& cloth, particle_structure& falling_sphe
                 //falling_sphere.v = -falling_sphere.v ;
                 parameters.is_extending = false;
                 parameters.need_collision_detect = false; // in bouncing-back, no need to collision detection anymore
-                 //detach all constraints particles
                 
-                float min_contact_dist = 100000000;
-                
-                int near_particle_ku=0;
-                int near_particle_kv=0;
-
-                for(int ku=0;ku<N_edge;++ku){
-                    for(int kv=0; kv<N_edge; ++kv){
-                        int index = cloth.position.index_to_offset(ku,kv);
-                        if(cloth.contact_info[index].is_contact==true){
-                            vec3 p = cloth.position(ku,kv);
-                            float fp_len = norm(falling_sphere.p-p);
-                            if(fp_len<min_contact_dist){
-                                min_contact_dist = fp_len;
-                                near_particle_ku = ku;
-                                near_particle_kv = kv;
-                            }
-                            cloth.contact_info[index].is_contact = false;
-                        }
-                    }
-                }
-
-                vec3 p_normal = cloth.normal(near_particle_ku,near_particle_kv);
-                p_normal = p_normal / norm(p_normal);
-                vec3 v_n = dot(falling_sphere.v, normal) * normal;
+                vec3 v_n = dot(falling_sphere.v, cloth.surface_normal) * cloth.surface_normal;
                 vec3 v_parallel = falling_sphere.v - v_n;
                 falling_sphere.v = v_parallel - v_n;
                 
-                /*
+                //detach all constraints particles
                 for (int k = 0; k < cloth.contact_info.size(); k++) {
                     cloth.contact_info[k].is_contact = false;
                 }
-                */
-
             }
             ////std::cout << "contrction"<<std::endl;
             //float gaussion_decrease_last = exp(-((t + dt) * sigma) * ((t + dt) * sigma) / 2);

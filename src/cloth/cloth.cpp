@@ -52,6 +52,9 @@ void cloth_structure::initialize_contact_sphere(){
     }
 }
 
+void cloth_structure::initialize_surface_normal(cgp::vec3 normal) {
+    surface_normal = normal;
+}
 
 void cloth_structure::precompute_neighbor(int resolution1, int resolution2) 
 {

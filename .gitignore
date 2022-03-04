@@ -401,3 +401,4 @@ RelWithDebInfo/
 *.cmake
 CMakeCache.txt
 CMakeFiles/
+imgui.ini

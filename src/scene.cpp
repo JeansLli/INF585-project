@@ -86,6 +86,14 @@ void scene_structure::initialize_cloth(int N_sample)
 	constraint.add_fixed_position(0, N_sample - 1, cloth);
 	constraint.add_fixed_position(N_sample - 1, 0, cloth);
 	constraint.add_fixed_position(N_sample - 1, N_sample - 1, cloth);
+
+	const cgp::vec3& p0 = cloth.position(0, 0);
+	const cgp::vec3& p1 = cloth.position(0, N_sample - 1);
+	const cgp::vec3& p2 = cloth.position(N_sample - 1, 0);
+	const cgp::vec3& edge01 = p1 - p0;
+	const cgp::vec3& edge02 = p2 - p0;
+	cgp::vec3 normal = cgp::normalize(cgp::cross(edge01, edge02));
+	cloth.initialize_surface_normal(normal);
 }
 
 

@@ -17,6 +17,7 @@ struct cloth_structure
     cgp::grid_2D<cgp::vec3> normal;
 
     cgp::buffer<cloth_contact_info> contact_info;
+    cgp::vec3 surface_normal; // created by four fixed points of cloth
 
     cgp::buffer<cgp::uint3> triangle_connectivity;
 
@@ -30,6 +31,7 @@ struct cloth_structure
     
     void precompute_neighbor(int resolution1, int resolution2);
     void initialize_contact_sphere();
+    void initialize_surface_normal(cgp::vec3 normal);
 };
 
 
