@@ -46,10 +46,10 @@ int cloth_structure::N_samples_edge() const
 }
 
 void cloth_structure::initialize_contact_sphere(){
-    for(int i=0;i<position.size();++i){
-        contact_sphere.push_back(false);
+    contact_info.resize(position.size());
+    for (int i = 0; i < position.size(); ++i) {
+        contact_info[i].is_contact = false;
     }
-    
 }
 
 

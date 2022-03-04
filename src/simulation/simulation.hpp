@@ -14,11 +14,21 @@ struct simulation_parameters
     int resolution1 = 2;     // neighbor&bending resolution
     int resolution2 = 1;     // shearing resolution
 
+    bool need_collision_detect = true; // whether we need collision detection between sphere and cloth
+    bool is_connecting = false;  // falling sphere is connecting with cloth
+    bool is_extending = false;  // cloth is extending
+
     //  Wind magnitude and direction
     struct {
         float magnitude = 0.0f;
         cgp::vec3 direction = { 0,-1,0 };
     } wind;
+
+    void reset() {
+        need_collision_detect = true;
+        is_connecting = false;
+        is_extending = false;
+    }
 };
 
 
@@ -34,11 +44,11 @@ void simulation_apply_constraints(cloth_structure& cloth, particle_structure& fa
 // Helper function that tries to detect if the simulation diverged 
 bool simulation_detect_divergence(cloth_structure const& cloth);
 
-void simulation_collision_detection(cloth_structure &cloth,particle_structure& falling_sphere);
+void simulation_collision_detection(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters& parameters);
 
 //Handle two spheres collision
 void collision_sphere_sphere(particle_structure& sphere, cloth_structure& cloth, int ku, int kv, float radius_offset);
 
-void fall_sphere_update(particle_structure& falling_sphere, float dt);
+void fall_sphere_update(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters& parameters, float dt);
 
 void update_cloth_constraints(cloth_structure& cloth, particle_structure& falling_sphere);

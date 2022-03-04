@@ -8,19 +8,9 @@ const vec3 g = { 0,0,-9.81f };
 //const float beta = 0.9;// attenuation for collision
 const float epsilon = 0.01f;
 float t = 0;//time for extension
-bool EXTENSION_CLOTH = false;
-bool CONTRACTION_CLOTH = false;
+cgp::vec3 v_origin; //TODO: delete it later
+int cnt_test = 0;//TODO: delete it later, just for test 
 float sigma = 3;// the smaller sigma is, the slower the sphere's speed decrease
-
-
-static vec3 spring_force(const vec3& p_i, const vec3& p_j, float L0, float K)
-{
-    vec3 const p = p_i - p_j;
-    float const L = norm(p);
-    vec3 const u = p / L;
-    vec3 const F = -K * (L - L0) * u;
-    return F;
-}
 
 
 //Jingyi's work 2022-3-3
@@ -97,27 +87,37 @@ void collision_sphere_sphere(particle_structure& sphere, cloth_structure& cloth,
 //Jingyi's work done 
 
 
-void simulation_collision_detection(cloth_structure &cloth,particle_structure& falling_sphere){
+void simulation_collision_detection(cloth_structure &cloth,particle_structure& falling_sphere, simulation_parameters& parameters){
+    if (!parameters.need_collision_detect)
+        return; // when sphere is in the seconde phrase of bouncing, no need to and should not to detect collision cause if do so, if will connect cloth again
     size_t const N_edge = cloth.N_samples_edge(); // number of vertices in one dimension of the grid
     const float radius_offset = 0.01f; // because we just check the vertices not triangles, that will lead to vertices on sphere's surface but the middle point get inside into sphere
     for (int ku = 0; ku < N_edge; ++ku) {
         for (int kv = 0; kv < N_edge; ++kv) {
             int index = cloth.position.index_to_offset(ku, kv);
+            if (cloth.contact_info[index].is_contact)
+                continue;
             vec3& p = cloth.position(ku, kv);
             vec3 cf = p - falling_sphere.p;
             float cf_len = norm(cf);
             if(cf_len <= (falling_sphere.r + radius_offset)){
-                cloth.contact_sphere[index]= true;
-            }
-            else{
-                cloth.contact_sphere[index]=false;
+
+                // TODO: delete it later
+                if (!parameters.is_connecting)
+                    cnt_test = 0; // first time to start connect
+                // TODO: delte it end..
+
+                parameters.is_connecting = true;
+                parameters.is_extending = true;
+                cloth.contact_info[index].is_contact = true;
+                cloth.contact_info[index].offset = cgp::normalize(cf) * (falling_sphere.r + radius_offset);
             }
         }
     }         
 }
 
-void fall_sphere_update(particle_structure& falling_sphere, float dt){
-    if(EXTENSION_CLOTH==false && CONTRACTION_CLOTH==false){
+void fall_sphere_update(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters& parameters, float dt){
+    if(!parameters.is_connecting){
         //std::cout << "fall freely"<<std::endl;
 
         vec3 const f = 0.05f * g;
@@ -127,42 +127,66 @@ void fall_sphere_update(particle_structure& falling_sphere, float dt){
         //std::cout << "no extension, v=" << falling_sphere.v << std::endl;
 
     }
-    else if (EXTENSION_CLOTH==true && CONTRACTION_CLOTH==false){
-        //std::cout << "extension"<<std::endl;
-        if(falling_sphere.BALL_STOP){
-            return;
+    else {
+        // TODO: simplify gaussian function just one line to handle different direction
+        if (parameters.is_extending) {
+            //if (cnt_test == 0) {
+            //    v_origin = falling_sphere.v;//TODO: delete it later
+            //}
+            cnt_test += 1;
+            falling_sphere.v *= 0.9f; // regression
+            falling_sphere.p = falling_sphere.p + falling_sphere.v * dt;
+            if (cnt_test >= 100) {
+                falling_sphere.v = cgp::vec3(0, 0, 0);//change direction
+                parameters.is_extending = false;
+                parameters.need_collision_detect = false; // in bouncing-back, no need to collision detection anymore
+                 //detach all constraints particles
+                for (int k = 0; k < cloth.contact_info.size(); k++) {
+                    cloth.contact_info[k].is_contact = false;
+                }
+            }
+            ////std::cout << "contrction"<<std::endl;
+            //float gaussion_decrease_last = exp(-((t + dt) * sigma) * ((t + dt) * sigma) / 2);
+            //float gaussion_decrease = exp(-(t * sigma) * (t * sigma) / 2);
+            ////std::cout << "gaussion_decrease="<<gaussion_decrease << std::endl;
+            //falling_sphere.v = falling_sphere.v * gaussion_decrease / gaussion_decrease_last; // v_k = v_k-1 * g(t_k) / g_(t_k-1)
+            ////std::cout << "extension, v=" << falling_sphere.v << std::endl;
+            //falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
+            //t = t - dt;
+            //if (t < 1e-9) {
+            //    parameters.is_connecting = false;
+            //    parameters.is_extending = false;
+            //}
         }
-        if(norm(falling_sphere.v)<1e-7){
-            t = t - dt;
-            falling_sphere.v = -falling_sphere.v;
-            falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
-            EXTENSION_CLOTH = false;
-            CONTRACTION_CLOTH = true;
-        }else{
-            float gaussion_decrease_last = exp(-((t-dt)*sigma)*((t-dt)*sigma)/2);
-            float gaussion_decrease = exp(-(t*sigma)*(t*sigma)/2);
-            //std::cout << "gaussion_decrease="<<gaussion_decrease << std::endl;
-            falling_sphere.v = falling_sphere.v * gaussion_decrease / gaussion_decrease_last; // v_k = v_k-1 * g(t_k) / g_(t_k-1)
-            //std::cout << "extension, v=" << falling_sphere.v << std::endl;
-            falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
-            //std::cout << "extension, p=" << falling_sphere.p << std::endl;
-            //std::cout << "extension, move p=" << dt * falling_sphere.v << std::endl;
-            t = t + dt;
-        }
+        else {
+            if (cnt_test <= 0) {
+                parameters.is_connecting = false; // finish bouncing
+                parameters.need_collision_detect = false; // in bouncing-back, no need to collision detection anymore
+               
+            }
+            else {
+                cnt_test -= 1;
+                falling_sphere.v = cgp::vec3(0, 0, 0.3f) * 1.1f; // increase
+                falling_sphere.p = falling_sphere.p + falling_sphere.v * dt;
+            }
 
-    }
-    else if(EXTENSION_CLOTH==false && CONTRACTION_CLOTH==true){
-        //std::cout << "contrction"<<std::endl;
-        float gaussion_decrease_last = exp(-((t+dt)*sigma)*((t+dt)*sigma)/2);
-        float gaussion_decrease = exp(-(t*sigma)*(t*sigma)/2);
-        //std::cout << "gaussion_decrease="<<gaussion_decrease << std::endl;
-        falling_sphere.v = falling_sphere.v * gaussion_decrease / gaussion_decrease_last; // v_k = v_k-1 * g(t_k) / g_(t_k-1)
-        //std::cout << "extension, v=" << falling_sphere.v << std::endl;
-        falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
-        t = t - dt;
-        if(t<1e-9){
-            EXTENSION_CLOTH = false;
-            CONTRACTION_CLOTH = false;
+            //if (norm(falling_sphere.v) < 1e-7) {
+            //    t = t - dt;
+            //    falling_sphere.v = -falling_sphere.v;
+            //    falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
+            //    parameters.is_extending = false;
+            //}
+            //else {
+            //    float gaussion_decrease_last = exp(-((t - dt) * sigma) * ((t - dt) * sigma) / 2);
+            //    float gaussion_decrease = exp(-(t * sigma) * (t * sigma) / 2);
+            //    //std::cout << "gaussion_decrease="<<gaussion_decrease << std::endl;
+            //    falling_sphere.v = falling_sphere.v * gaussion_decrease / gaussion_decrease_last; // v_k = v_k-1 * g(t_k) / g_(t_k-1)
+            //    //std::cout << "extension, v=" << falling_sphere.v << std::endl;
+            //    falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
+            //    //std::cout << "extension, p=" << falling_sphere.p << std::endl;
+            //    //std::cout << "extension, move p=" << dt * falling_sphere.v << std::endl;
+            //    t = t + dt;
+            //}
         }
     }
 }
@@ -173,9 +197,9 @@ void update_cloth_constraints(cloth_structure& cloth, particle_structure& fallin
     for (int ku = 0; ku < N_edge; ++ku) {
         for (int kv = 0; kv < N_edge; ++kv) {
             int index = cloth.position.index_to_offset(ku, kv);
-            if(cloth.contact_sphere[index]){
+            if(cloth.contact_info[index].is_contact){
                 vec3& p = cloth.position(ku, kv);
-                
+                p = falling_sphere.p + cloth.contact_info[index].offset;
             }
             
             // collide with obstacle spheres
@@ -198,11 +222,11 @@ void update_cloth_constraints(cloth_structure& cloth, particle_structure& fallin
             //p.z = std::max(constraint.ground_z + epsilon, p.z);
 
             //vec3 normal = cloth.normal(ku, kv);
-            vec3 cf = p - falling_sphere.p;
-            float cf_len = norm(cf);
+            //vec3 cf = p - falling_sphere.p;
+            //float cf_len = norm(cf);
             //vec3 uij = (p - falling_sphere.p) / detection; // direction from pi(cloth particle) to pj(falling_sphere)
             //falling_sphere.r + radius_offset=0.06
-            if (cf_len <= (falling_sphere.r + radius_offset)) {
+            //if (cf_len <= (falling_sphere.r + radius_offset)) {
                 //Jingyi's work 2022-3-3
                 //collision_sphere_sphere(falling_sphere,cloth,ku,kv,radius_offset); //it's for colission
 
@@ -212,12 +236,12 @@ void update_cloth_constraints(cloth_structure& cloth, particle_structure& fallin
                 //if(dot(cf,falling_sphere.v)>=0){
 
                 //if(cf.z <=0){ //the sphere's center is above
-                    p += (falling_sphere.r + radius_offset - cf_len) * normalize(cf); 
-                    if(t<1e-9 && falling_sphere.v.z<0){
-                        EXTENSION_CLOTH = true;
-                        CONTRACTION_CLOTH = false;
-                        //falling_sphere.BALL_STOP = true;
-                    }
+                    //p += (falling_sphere.r + radius_offset - cf_len) * normalize(cf); 
+                    //if(t<1e-9 && falling_sphere.v.z<0){
+                    //    EXTENSION_CLOTH = true;
+                    //    CONTRACTION_CLOTH = false;
+                    //    //falling_sphere.BALL_STOP = true;
+                    //}
                     
 
                     //std::cout << "move distance="<<(falling_sphere.r + radius_offset - cf_len)<<std::endl;
@@ -233,7 +257,7 @@ void update_cloth_constraints(cloth_structure& cloth, particle_structure& fallin
                 //std::cout << "falling_sphere radius"<<falling_sphere.r<<std::endl;
                 //EXTENSION_CLOTH = true;
                 //Jingyi's work done
-            }
+            //}
             
         }
     }
@@ -314,33 +338,6 @@ void simulation_compute_force(cloth_structure& cloth, simulation_parameters cons
             force(ku, kv) += K * sum;
         }
     }
-    
-    // Springs
-    const int N_neighbors = 2;
-
-    for (int ku = 0; ku < N_edge; ++ku) {
-        for (int kv = 0; kv < N_edge; ++kv) {
-            vec3& f = force(ku, kv);
-
-            // Loops over neighbors
-            for (int du = -N_neighbors; du <= N_neighbors; ++du) {
-                for (int dv = -N_neighbors; dv <= N_neighbors; ++dv) {
-                    if (du != 0 || dv != 0)
-                    {
-                        // Neighbors indices
-                        int const ku_n = ku + du;
-                        int const kv_n = kv + dv;
-                        float const alpha = float(std::sqrt(du * du + dv * dv)); // rest-length
-
-                        if (ku_n >= 0 && ku_n < N_edge && kv_n >= 0 && kv_n < N_edge)
-                            f += spring_force(position(ku, kv), position(ku_n, kv_n), alpha * L0, K / alpha);
-                    }
-                }
-            }
-
-        }
-
-    }
 }
 
 void simulation_numerical_integration(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters const& parameters, float dt)
@@ -359,9 +356,8 @@ void simulation_numerical_integration(cloth_structure& cloth, particle_structure
             int index = cloth.position.index_to_offset(ku, kv);
             vec3& v = cloth.velocity(ku, kv);
             vec3& p = cloth.position(ku, kv);
-            if(cloth.contact_sphere[index]){
+            if(cloth.contact_info[index].is_contact){
                 std::cout << "contacted particle=" << ku << ","<< kv << std::endl;
-                p = p + dt * falling_sphere.v;
             }else{
                 vec3 const& f = cloth.force(ku, kv);
                 // Standard semi-implicit numerical integration

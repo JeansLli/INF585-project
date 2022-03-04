@@ -2,6 +2,11 @@
 
 #include "cgp/cgp.hpp"
 
+struct cloth_contact_info {
+    bool is_contact;
+    cgp::vec3 offset; // from sphere's center to point on surface
+};
+
 // Stores the buffers representing the cloth vertices
 struct cloth_structure
 {    
@@ -11,7 +16,7 @@ struct cloth_structure
     cgp::grid_2D<cgp::vec3> force;
     cgp::grid_2D<cgp::vec3> normal;
 
-    std::vector<bool> contact_sphere;
+    cgp::buffer<cloth_contact_info> contact_info;
 
     cgp::buffer<cgp::uint3> triangle_connectivity;
 

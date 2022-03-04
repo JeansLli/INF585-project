@@ -32,8 +32,8 @@ void scene_structure::display()
 	for (int k_step = 0; simulation_running ==true && k_step < N_step; ++k_step)
 	{
 		// Update the forces on each particle
-		simulation_collision_detection(cloth,falling_sphere);
-		fall_sphere_update(falling_sphere, parameters.dt/N_step);
+		simulation_collision_detection(cloth, falling_sphere, parameters);
+		fall_sphere_update(cloth, falling_sphere, parameters, parameters.dt / N_step);
 		update_cloth_constraints(cloth, falling_sphere);
 		simulation_compute_force(cloth, parameters);
 
@@ -153,6 +153,7 @@ void scene_structure::display_gui()
 	ImGui::Spacing(); ImGui::Spacing();
 	reset |= ImGui::Button("Restart");
 	if (reset) {
+		parameters.reset(); // reset simulation parameters
 		initialize_spheres();
 		initialize_cloth(gui.N_sample_edge);
 		simulation_running = true;
@@ -167,5 +168,4 @@ void scene_structure::initialize_spheres()
 	falling_sphere.c = { 1.0f, 1.0f, 1.0f }; // color
 	falling_sphere.r = 0.05f;
 	falling_sphere.m = 1;
-	falling_sphere.BALL_STOP = false;
 }

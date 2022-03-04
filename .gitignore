@@ -398,4 +398,6 @@ RelWithDebInfo/
 *.exe
 *.sln
 *.vcxproj.filters
-
+*.cmake
+CMakeCache.txt
+CMakeFiles/

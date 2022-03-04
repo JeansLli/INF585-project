@@ -24,7 +24,6 @@ struct particle_structure
 	cgp::vec3 c; // Color
 	float r;     // Radius
 	float m;     // mass
-	bool BALL_STOP;
 };
 
 struct constraint_structure
