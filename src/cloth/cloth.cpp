@@ -11,12 +11,13 @@ void cloth_structure::initialize(int N_samples_edge_arg)
     normal.clear();
     velocity.clear();
     force.clear();
+    
 
     position.resize(N_samples_edge_arg, N_samples_edge_arg);
     normal.resize(N_samples_edge_arg, N_samples_edge_arg);
     velocity.resize(N_samples_edge_arg, N_samples_edge_arg);
     force.resize(N_samples_edge_arg, N_samples_edge_arg);
-
+    
 
     float const z0 = 1.0f;
     mesh const cloth_mesh = mesh_primitive_grid({ -0.5f,0,z0 }, { 0.5f,0,z0 }, { 0.5f,1,z0 }, { -0.5f,1,z0 }, N_samples_edge_arg, N_samples_edge_arg).fill_empty_field();
@@ -26,6 +27,10 @@ void cloth_structure::initialize(int N_samples_edge_arg)
 
     neighbor_cross_map.resize(position.size());
     neighbor_diagonal_map.resize(position.size());
+
+    //Jingyi's work 2022-3-4
+    initialize_contact_sphere();
+    //Jingyi's work done
 
     precompute_neighbor(2, 1);
 }
@@ -39,6 +44,14 @@ int cloth_structure::N_samples_edge() const
 {
     return position.dimension.x;
 }
+
+void cloth_structure::initialize_contact_sphere(){
+    for(int i=0;i<position.size();++i){
+        contact_sphere.push_back(false);
+    }
+    
+}
+
 
 void cloth_structure::precompute_neighbor(int resolution1, int resolution2) 
 {

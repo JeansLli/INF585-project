@@ -11,9 +11,11 @@ struct cloth_structure
     cgp::grid_2D<cgp::vec3> force;
     cgp::grid_2D<cgp::vec3> normal;
 
-    // Also stores the triangle connectivity used to update the normals
+    std::vector<bool> contact_sphere;
+
     cgp::buffer<cgp::uint3> triangle_connectivity;
 
+    // Also stores the triangle connectivity used to update the normals
     cgp::buffer<cgp::buffer<cgp::int3>> neighbor_cross_map;  // cross neighbor. each particle has its neighbor information: int3{ ku, kv, offset}
     cgp::buffer<cgp::buffer<cgp::int3>> neighbor_diagonal_map;  // diagonal neighbor
     
@@ -22,6 +24,7 @@ struct cloth_structure
     int N_samples_edge() const; // Number of vertex along one dimension of the grid
     
     void precompute_neighbor(int resolution1, int resolution2);
+    void initialize_contact_sphere();
 };
 
 

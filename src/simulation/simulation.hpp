@@ -33,3 +33,12 @@ void simulation_apply_constraints(cloth_structure& cloth, particle_structure& fa
 
 // Helper function that tries to detect if the simulation diverged 
 bool simulation_detect_divergence(cloth_structure const& cloth);
+
+void simulation_collision_detection(cloth_structure &cloth,particle_structure& falling_sphere);
+
+//Handle two spheres collision
+void collision_sphere_sphere(particle_structure& sphere, cloth_structure& cloth, int ku, int kv, float radius_offset);
+
+void fall_sphere_update(particle_structure& falling_sphere, float dt);
+
+void update_cloth_constraints(cloth_structure& cloth, particle_structure& falling_sphere);

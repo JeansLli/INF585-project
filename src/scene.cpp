@@ -32,6 +32,9 @@ void scene_structure::display()
 	for (int k_step = 0; simulation_running ==true && k_step < N_step; ++k_step)
 	{
 		// Update the forces on each particle
+		simulation_collision_detection(cloth,falling_sphere);
+		fall_sphere_update(falling_sphere, parameters.dt/N_step);
+		update_cloth_constraints(cloth, falling_sphere);
 		simulation_compute_force(cloth, parameters);
 
 		// One step of numerical integration
@@ -95,10 +98,10 @@ void scene_structure::initialize()
 	obstacle_floor.texture = opengl_load_texture_image("assets/wood.jpg");
 	obstacle_floor.transform.translation = { 0,0,constraint.ground_z };
 
-	obstacle_sphere.initialize(mesh_primitive_sphere());
-	obstacle_sphere.transform.translation = constraint.sphere.center;
-	obstacle_sphere.transform.scaling = constraint.sphere.radius;
-	obstacle_sphere.shading.color = { 1,0,0 };
+	//obstacle_sphere.initialize(mesh_primitive_sphere());
+	//obstacle_sphere.transform.translation = constraint.sphere.center;
+	//obstacle_sphere.transform.scaling = constraint.sphere.radius;
+	//obstacle_sphere.shading.color = { 1,0,0 };
 
 	falling_sphere_drawable.initialize(mesh_primitive_sphere());
 	
@@ -153,8 +156,8 @@ void scene_structure::display_gui()
 		initialize_spheres();
 		initialize_cloth(gui.N_sample_edge);
 		simulation_running = true;
+		
 	}
-
 }
 
 void scene_structure::initialize_spheres()
@@ -164,4 +167,5 @@ void scene_structure::initialize_spheres()
 	falling_sphere.c = { 1.0f, 1.0f, 1.0f }; // color
 	falling_sphere.r = 0.05f;
 	falling_sphere.m = 1;
+	falling_sphere.BALL_STOP = false;
 }
