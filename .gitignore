@@ -393,3 +393,9 @@ FodyWeavers.xsd
 
 # for this project particularly
 08_cloth.dir/
+RelWithDebInfo/
+*.vcxproj
+*.exe
+*.sln
+*.vcxproj.filters
+
