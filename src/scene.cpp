@@ -172,7 +172,7 @@ void scene_structure::display_gui()
 void scene_structure::initialize_spheres()
 {
 	falling_sphere.p = { 0.0f, 0.5f, 1.5f };
-	falling_sphere.v = { 0.0f, 0.0f, 0.0f };
+	falling_sphere.v = { 0.0f, 0.0f, 1.0f };
 	falling_sphere.c = { 1.0f, 1.0f, 1.0f }; // color
 	falling_sphere.r = 0.05f;
 	falling_sphere.m = 1;
