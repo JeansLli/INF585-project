@@ -32,7 +32,7 @@ x86/
 [Aa][Rr][Mm]64/
 bld/
 [Bb]in/
-[Oo]bj/
+# [Oo]bj/ --> just comment this line for INF585 project
 [Ll]og/
 [Ll]ogs/
 
