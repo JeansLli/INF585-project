@@ -229,9 +229,9 @@ void scene_structure::remove_sphere()
 				size_t sphere_index = it - spheres.begin();
 				cloth_contact_info& info = cloth.contact_info[index];
 				// remove sphere index
-				auto remove_it = std::remove_if(info.connecting_spheres.begin(), info.connecting_spheres.end(), [&](size_t e) { return e == sphere_index; });
-				for (auto it = remove_it; it < info.connecting_spheres.end(); it++) {
-					info.connecting_spheres.erase(it);
+				auto remove_it2 = std::remove_if(info.connecting_spheres.begin(), info.connecting_spheres.end(), [&](size_t e) { return e == sphere_index; });
+				for (auto it2 = remove_it2; it2 < info.connecting_spheres.end(); it2++) {
+					info.connecting_spheres.erase(it2);
 				}
 			}
 			spheres.erase(it);
