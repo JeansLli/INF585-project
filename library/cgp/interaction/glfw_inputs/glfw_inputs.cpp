@@ -80,10 +80,20 @@ void inputs_keyboard_parameters::update_from_glfw_key(int key, int action)
 		if (action == GLFW_PRESS) right = true;
 		if (action == GLFW_RELEASE) right = false;
 	}
+
+	if (key == GLFW_KEY_SPACE) {
+		if (action == GLFW_PRESS) space = true;
+		if (action == GLFW_RELEASE) space = false;
+	}
+
+	if (key == GLFW_KEY_Q) {
+		if (action == GLFW_PRESS) key_q = true;
+		if (action == GLFW_RELEASE) key_q = false;
+	}
 }
 
 inputs_keyboard_parameters::inputs_keyboard_parameters()
-	:shift(false), ctrl(false), up(false), down(false), right(false), left(false)
+	:shift(false), ctrl(false), up(false), down(false), right(false), left(false), space(false)
 {}
 
 

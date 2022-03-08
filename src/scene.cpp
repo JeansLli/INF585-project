@@ -9,10 +9,12 @@ void scene_structure::display()
 	// Basics common elements
 	// ***************************************** //
 	timer.update();
+
+	remove_sphere();
+
 	environment.light = environment.camera.position();
 	if (gui.display_frame)
 		draw(global_frame, environment);
-
 	
 	
 	// Elements of the scene: Obstacles (floor, sphere), and fixed position
@@ -25,24 +27,22 @@ void scene_structure::display()
 		draw(sphere_fixed_position, environment);
 	}
 
-
 	// Simulation of the cloth
 	// ***************************************** //
 	int const N_step = 1; // Adapt here the number of intermediate simulation steps (ex. 5 intermediate steps per frame)
 	for (int k_step = 0; simulation_running ==true && k_step < N_step; ++k_step)
 	{
 		// Update the forces on each particle
-		simulation_collision_detection(cloth, falling_sphere, parameters);
-		fall_sphere_update(cloth, falling_sphere, parameters, parameters.dt / N_step);
-		update_cloth_constraints(cloth, falling_sphere);
+		simulation_collision_detection(cloth, spheres, box);
+		simulation_update_spheres(cloth, spheres, parameters.dt / N_step);
+		update_cloth_constraints(cloth, spheres);
 		simulation_compute_force(cloth, parameters);
 
 		// One step of numerical integration
-		simulation_numerical_integration(cloth, falling_sphere, parameters, parameters.dt/N_step);
+		simulation_numerical_integration(cloth, parameters, parameters.dt/N_step);
 
 		// Apply the positional (and velocity) constraints
-		simulation_apply_constraints(cloth, falling_sphere, constraint, parameters);
-
+		simulation_apply_constraints(cloth, constraint);
 
 		// Check if the simulation has not diverged - otherwise stop it
 		bool const simulation_diverged = simulation_detect_divergence(cloth);
@@ -66,11 +66,23 @@ void scene_structure::display()
 	if(gui.display_wireframe)
 		draw_wireframe(cloth_drawable, environment);
 
-	// Display falling sphere
-	falling_sphere_drawable.transform.translation = falling_sphere.p;
-	falling_sphere_drawable.transform.scaling = falling_sphere.r;
-	falling_sphere_drawable.shading.color = falling_sphere.c;
-	draw(falling_sphere_drawable, environment);
+	// Display spheres
+	for (size_t k = 0; k < spheres.size(); ++k)
+	{
+		sphere_structure const& sphere = spheres[k];
+		sphere_drawable.transform.translation = sphere.p;
+		sphere_drawable.transform.scaling = sphere.r;
+		sphere_drawable.shading.color = sphere.c;
+		draw(sphere_drawable, environment);
+	}
+
+	// Display the box in which the particles should stay
+	cgp::buffer<vec3> cube_wireframe_data_new;
+	for (auto p : cube_wireframe_data) {
+		cube_wireframe_data_new.push_back(box.orientation * box.scale * p + box.center);
+	}
+	cube_wireframe.update(cube_wireframe_data_new);
+	draw(cube_wireframe, environment);
 }
 
 
@@ -86,16 +98,7 @@ void scene_structure::initialize_cloth(int N_sample)
 	constraint.add_fixed_position(0, N_sample - 1, cloth);
 	constraint.add_fixed_position(N_sample - 1, 0, cloth);
 	constraint.add_fixed_position(N_sample - 1, N_sample - 1, cloth);
-
-	const cgp::vec3& p0 = cloth.position(0, 0);
-	const cgp::vec3& p1 = cloth.position(0, N_sample - 1);
-	const cgp::vec3& p2 = cloth.position(N_sample - 1, 0);
-	const cgp::vec3& edge01 = p1 - p0;
-	const cgp::vec3& edge02 = p2 - p0;
-	cgp::vec3 normal = cgp::normalize(cgp::cross(edge01, edge02));
-	cloth.initialize_surface_normal(normal);
 }
-
 
 void scene_structure::initialize()
 {
@@ -106,22 +109,18 @@ void scene_structure::initialize()
 	obstacle_floor.texture = opengl_load_texture_image("assets/wood.jpg");
 	obstacle_floor.transform.translation = { 0,0,constraint.ground_z };
 
-	//obstacle_sphere.initialize(mesh_primitive_sphere());
-	//obstacle_sphere.transform.translation = constraint.sphere.center;
-	//obstacle_sphere.transform.scaling = constraint.sphere.radius;
-	//obstacle_sphere.shading.color = { 1,0,0 };
-
-	falling_sphere_drawable.initialize(mesh_primitive_sphere());
+	sphere_drawable.initialize(mesh_primitive_sphere());
 	
 	sphere_fixed_position.initialize(mesh_primitive_sphere());
 	sphere_fixed_position.transform.scaling = 0.02f;
 	sphere_fixed_position.shading.color = { 0,0,1 };
 
-
 	cloth_texture = opengl_load_texture_image("assets/cloth.jpg");
 	initialize_cloth(gui.N_sample_edge);
-
 	initialize_spheres();
+	initialize_box();
+
+	cube_wireframe.initialize(cube_wireframe_data, "cube wireframe");
 }
 
 void scene_structure::display_gui()
@@ -146,13 +145,30 @@ void scene_structure::display_gui()
 	update |= ImGui::SliderInt("Neighbor&Bending Resolution", &parameters.resolution1, 2, 10);
 	update |= ImGui::SliderInt("Shearing Sprins Resolution", &parameters.resolution2, 1, 10);
 
+	if (update) {
+		cloth.precompute_neighbor(parameters.resolution1, parameters.resolution2);
+	}
+
 	ImGui::SliderFloat("Wind direction.x", &parameters.wind.direction.x, -1.0f, 1.0f);
 	ImGui::SliderFloat("Wind direction.y", &parameters.wind.direction.y, -1.0f, 1.0f);
 	ImGui::SliderFloat("Wind direction.z", &parameters.wind.direction.z, -1.0f, 1.0f);
 
-	if (update) {
-		cloth.precompute_neighbor(parameters.resolution1, parameters.resolution2);
+	bool update_sphere_pos = false;
+	update_sphere_pos |= ImGui::SliderFloat("Sphere pos.x", &parameters.sphere_pos.x, -5.0f, 5.0f);
+	update_sphere_pos |= ImGui::SliderFloat("Sphere pos.y", &parameters.sphere_pos.y, -5.0f, 5.0f);
+	update_sphere_pos |= ImGui::SliderFloat("Sphere pos.z", &parameters.sphere_pos.z, 0.0f, 10.0f);
+	if (update_sphere_pos) {
+		spheres[cur_sphere_index].p = parameters.sphere_pos;
 	}
+
+	ImGui::SliderFloat("Emit velocity.x", &parameters.v_emit.x, 0.0f, 10.0f);
+	ImGui::SliderFloat("Emit velocity.y", &parameters.v_emit.y, 0.0f, 10.0f);
+	ImGui::SliderFloat("Emit velocity.z", &parameters.v_emit.z, -10.0f, 0.0f);
+	
+	ImGui::SliderFloat("Box scale", &box.scale, 0.1f, 1.0f);
+	ImGui::SliderFloat("Box pos.x", &box.center.x, -10.0f, 10.0f);
+	ImGui::SliderFloat("Box pos.y", &box.center.y, -10.0f, 10.0f);
+	ImGui::SliderFloat("Box pos.z", &box.center.z, -10.0f, 10.0f);
 
 	ImGui::Spacing(); ImGui::Spacing();
 	
@@ -161,19 +177,71 @@ void scene_structure::display_gui()
 	ImGui::Spacing(); ImGui::Spacing();
 	reset |= ImGui::Button("Restart");
 	if (reset) {
-		parameters.reset(); // reset simulation parameters
 		initialize_spheres();
+		initialize_box();
 		initialize_cloth(gui.N_sample_edge);
 		simulation_running = true;
-		
 	}
+}
+
+void scene_structure::initialize_box()
+{
+	// initialize bounding box
+	box.initialize(environment.camera);
+	box.center = { 0.0f, 1.54f, 0.515f }; // magic number :), try it one by one
+	box.scale = 0.35f; // magic number :), try it one by one
 }
 
 void scene_structure::initialize_spheres()
 {
-	falling_sphere.p = { 0.0f, 0.5f, 1.5f };
-	falling_sphere.v = { 0.0f, 0.0f, 1.0f };
-	falling_sphere.c = { 1.0f, 1.0f, 1.0f }; // color
-	falling_sphere.r = 0.05f;
-	falling_sphere.m = 1;
+	spheres.clear();
+	parameters.v_emit = { 0.0f, 1.34f, -4.897f }; // magic number :), of course I spend time on trying it
+	parameters.sphere_pos = { 0.0f, 0.0f, 1.5f };
+	create_sphere();
+}
+
+void scene_structure::create_sphere()
+{
+	sphere_structure sphere;
+	sphere.p = parameters.sphere_pos;
+	sphere.v = { 0.0f, 0.0f, 0.0f };
+	sphere.c = { 1.0f, 1.0f, 1.0f }; // color
+	sphere.r = 0.05f;
+	sphere.m = 1;
+	sphere.can_move = false;
+	cur_sphere_index = spheres.size();
+	spheres.push_back(sphere);
+}
+
+void scene_structure::emit_sphere()
+{
+	sphere_structure& sphere = spheres[cur_sphere_index];
+	sphere.v = parameters.v_emit;
+	sphere.can_move = true;
+}
+
+void scene_structure::remove_sphere()
+{
+	if (spheres.size() > 0) {
+		auto remove_it = std::remove_if(spheres.begin(), spheres.end(), [&](sphere_structure e) { return e.p.z <= -3.0f; });
+		for (auto it = remove_it; it < spheres.end(); it++) {
+			for (auto index : it->connecting_particles) {
+				size_t sphere_index = it - spheres.begin();
+				cloth_contact_info& info = cloth.contact_info[index];
+				// remove sphere index
+				auto remove_it = std::remove_if(info.connecting_spheres.begin(), info.connecting_spheres.end(), [&](size_t e) { return e == sphere_index; });
+				for (auto it = remove_it; it < info.connecting_spheres.end(); it++) {
+					info.connecting_spheres.erase(it);
+				}
+			}
+			spheres.erase(it);
+		}
+	}
+}
+
+void scene_structure::keyboard_callback(const cgp::inputs_interaction_parameters& inputs) {
+	if (inputs.keyboard.space) {
+		emit_sphere();
+		create_sphere();
+	}
 }

@@ -4,186 +4,237 @@
 using namespace cgp;
 
 const vec3 g = { 0,0,-9.81f };
-const float radius_offset = 0.025f; // because we just check the vertices not triangles, that will lead to vertices on sphere's surface but the middle point get inside into sphere
-//const float alpha = 0.9;// attenuation for collision
-//const float beta = 0.9;// attenuation for collision
+const float radius_offset = 0.015f; // because we just check the vertices not triangles, that will lead to vertices on sphere's surface but the middle point get inside into sphere
 const float epsilon = 0.01f;
-float sphere_first_projection; // sphere center project on surface_normal for first contact with cloth
 
-//Jingyi's work 2022-3-3
-void collision_sphere_sphere(particle_structure& sphere, cloth_structure& cloth, int ku, int kv, float radius_offset)
+
+void collision_sphere_sphere(std::vector<sphere_structure>& spheres)
 {
-    vec3& p1 = sphere.p;
-    vec3& p2 = cloth.position(ku, kv);
-    vec3& v1 = sphere.v;
-    vec3& v2 = cloth.velocity(ku, kv);
-    float const r1 = sphere.r;
-    float const r2 = radius_offset;
-
-    float const epsilon = 1e-5f;
-    float const alpha = 0.95f;
-
-    vec3 const p12 = p1 - p2;
-    float const d12 = norm(p12);
-
-    if (d12 < r1 + r2)
+    const float mu = 0.8f;
+    const float alpha = 0.9f;// attenuation for collision
+    const float beta = 0.9f;// attenuation for collision
+    const float e = 0.001f; // relative speed detection
+    // particles collide with themselves
+    for (size_t i = 0; i < spheres.size(); i++)
     {
-        vec3 const u12 = p12 / d12;
-        float const collision_depth = r1 + r2 - d12;
-
-        p1 += (collision_depth / 2.0f + epsilon) * u12;
-        p2 -= (collision_depth / 2.0f + epsilon) * u12;
-
-        if (norm(v1 - v2) > 0.2f) {
-            float const j = dot(v1 - v2, u12);
-            v1 = v1 - alpha * j * u12;
-            v2 = v2 + alpha * j * u12;
-        }
-        else // Contact
+        sphere_structure& pi = spheres[i];
+        if (!pi.can_move)
+            continue;
+        for (size_t j = 0; j < spheres.size(); j++)
         {
-            v1 = v1 * 0.83f;
-            v2 = v2 * 0.83f;
+            if (i == j) {
+                continue; // no need to handle itself
+            }
+            sphere_structure& pj = spheres[j];
+            if (!pj.can_move)
+                continue;
+            float detection = norm(pj.p - pi.p);
+            vec3 uij = (pj.p - pi.p) / detection; // direction from pi to pj
+            if (detection <= (pi.r + pj.r)) {
+                vec3 vij = pj.v - pi.v;
+                if (norm(vij) <= e) {
+                    // static contact
+                    pi.v *= mu;
+                    pj.v *= mu;
+                }
+                else {
+                    // collide
+                    // impluse calculation
+                    vec3 u = -uij; // from j to i
+                    vec3 vi_perpendicular = dot(pi.v, u) * u;
+                    vec3 vi_parallel = pi.v - vi_perpendicular;
+                    vec3 vj_perpendicular = dot(pj.v, u) * u;
+                    vec3 vj_parallel = pj.v - vj_perpendicular;
+                    // apply impluse in perpendicular direction (perpendicular to seperating plane / along with u direction)
+                    vec3 dv = 2 / (pi.m + pj.m) * dot(vj_perpendicular - vi_perpendicular, u) * u;
+                    vi_perpendicular += pj.m * dv;
+                    vj_perpendicular -= pi.m * dv;
+                    pi.v = alpha * vi_parallel + beta * vi_perpendicular;
+                    pj.v = alpha * vj_parallel + beta * vj_perpendicular;
+                }
+
+                // correct position with simplest method
+                vec3 d = (pi.r + pj.r - detection) / 2 * uij;
+                pi.p -= d;
+                pj.p += d;
+            }
         }
     }
-
-    /* This's Putian's work for two spheres collision
-    vec3& vi = cloth.velocity(ku, kv);
-    vec3 vij = falling_sphere.v - vi;
-    if (norm(vij) <= epsilon) {
-        // static contact
-        vi *= mu;
-        falling_sphere.v *= mu;
-    }
-    else {
-        // collide
-        // impluse calculation
-        vec3 u = -uij; // from j to i
-        float j = 2 * (m * falling_sphere.m) / (m + falling_sphere.m) * dot(vij, u);
-        vec3 vi_perpendicular = dot(vi, u) * u;
-        vec3 vi_parallel = vi - vi_perpendicular;
-        vec3 vj_perpendicular = dot(falling_sphere.v, u) * u;
-        vec3 vj_parallel = falling_sphere.v - vj_perpendicular;
-        // apply impluse in perpendicular direction (perpendicular to seperating plane / along with u direction)
-        vec3 dv = 2 / (m + falling_sphere.m) * dot(vj_perpendicular - vi_perpendicular, u) * u;
-        vi_perpendicular += falling_sphere.m * dv;
-        vj_perpendicular -= m * dv;
-        //pi.v = alpha * vi_parallel + beta * vi_perpendicular;
-        //pj.v = alpha * vj_parallel + beta * vj_perpendicular;
-        vi = alpha * vi_parallel + beta * vi_perpendicular;
-        falling_sphere.v = alpha * vj_parallel + beta * vj_perpendicular;
-    }
-
-    // correct position with simplest method
-    vec3 d = (falling_sphere.r - detection) / 2 * uij;
-    p -= d;
-    falling_sphere.p += d;
-    */
 }
 
-
-//Jingyi's work done 
-
-
-void simulation_collision_detection(cloth_structure &cloth,particle_structure& falling_sphere, simulation_parameters& parameters){
-    if (!parameters.need_collision_detect)
-        return; // when sphere is in the seconde phrase of bouncing, no need to and should not to detect collision cause if do so, if will connect cloth again
+void collision_sphere_cloth(cloth_structure& cloth, std::vector<sphere_structure>& spheres) {
     size_t const N_edge = cloth.N_samples_edge(); // number of vertices in one dimension of the grid
     for (int ku = 0; ku < N_edge; ++ku) {
         for (int kv = 0; kv < N_edge; ++kv) {
             int index = cloth.position.index_to_offset(ku, kv);
-            if (cloth.contact_info[index].is_contact)
+            cloth_contact_info& info = cloth.contact_info[index];
+            if (info.connecting_spheres.size() > 0)
+                // actually one particle of cloth is only contacted by one sphere at the same time
                 continue;
-            vec3& p = cloth.position(ku, kv);
-            vec3 cf = p - falling_sphere.p;
-            float cf_len = norm(cf);
-            if(cf_len <= (falling_sphere.r + radius_offset)){
-                if (!parameters.is_connecting) {
-                    sphere_first_projection = dot(falling_sphere.p, cloth.surface_normal);
-                    falling_sphere.v *= 0.7f; // regression, velocity loss in collision
+            for (size_t i = 0; i < spheres.size(); i++) {
+                sphere_structure& sphere = spheres[i];
+                if (!sphere.can_move || !sphere.detect_cloth_collision)
+                    // when sphere is in the seconde phrase of bouncing, no need to and should not to detect collision cause if do so, if will connect cloth again
+                    continue;
+                if (std::find(info.connecting_spheres.begin(), info.connecting_spheres.end(), i) != info.connecting_spheres.end())
+                    // it has been handled
+                    continue;
+                vec3& p = cloth.position(ku, kv);
+                vec3 cf = p - sphere.p;
+                float cf_len = norm(cf);
+                if (cf_len <= (sphere.r + radius_offset)) {
+                    const float coef = 0.7f; // regression, velocity loss in collision
+                    sphere.v *= coef; // regression, velocity loss in collision
+                    info.offset = cgp::normalize(cf) * (sphere.r + radius_offset);
+                    info.connecting_spheres.push_back(i);
+                    if (sphere.connecting_particles.size() <= 0)
+                        sphere.p_at_contact = sphere.p; // only record at first contact
+                    sphere.connecting_particles.push_back(index);
                 }
-                parameters.is_connecting = true;
-                parameters.is_extending = true;
-                cloth.contact_info[index].is_contact = true;
-                cloth.contact_info[index].offset = cgp::normalize(cf) * (falling_sphere.r + radius_offset);
             }
         }
-    }         
+    }
 }
 
-void fall_sphere_update(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters& parameters, float dt){
+void collision_spheres_box(bounding_box const& box, std::vector<sphere_structure>& spheres) {
+    // spheres collide with 5 planes (not including top face)
+    const float alpha = 0.9f;// attenuation for collision
+    const float beta = 0.9f;// attenuation for collision
+    const float half_width = box.get_width() / 2.0f;
+    for (size_t k = 0; k < spheres.size(); ++k)
+    {
+        sphere_structure& sphere = spheres[k];
+        if (!sphere.can_move)
+            continue;
+        for (size_t i = 0; i < box.fns.size(); i++) {
+            const vec3 normal = box.get_surface_normal(i);
+            const vec3 point = box.get_point_on_surface(i);
+            const vec3 right = box.get_right_vector(i);
+            const vec3 up = box.get_up_vector(i);
+
+            // first, if the distance between center of sphere and face (abs(center projection on normal direction)), then sphere has possibility to collide with this face
+            const vec3 offset = sphere.p - point;
+            const float detection = dot(offset, normal);
+            if (std::abs(detection) < sphere.r) {
+                // next, check center projection on right/up direction, to see whether is inside range(width)
+                const float range = half_width + sphere.r;
+                const float right_projection = dot(offset, right);
+                if (std::abs(right_projection) >= (range))
+                    continue;
+                const float up_projection = dot(offset, up);
+                if (std::abs(up_projection) >= (range))
+                    continue;
+
+                // collide
+                vec3 dir = detection > 0 ? normal : -normal;
+                vec3 v_perpendicular = dot(sphere.v, dir) * dir;
+                vec3 v_parallel = sphere.v - v_perpendicular;
+                sphere.v = alpha * v_parallel - beta * v_perpendicular;
+
+                // correct position with simplest method
+                float d = sphere.r - detection;
+                sphere.p += d * dir;
+            }
+
+        }
+    }
+}
+
+void simulation_collision_detection(cloth_structure &cloth, std::vector<sphere_structure>& spheres, bounding_box const& box){
+    // collision between spheres 
+    collision_sphere_sphere(spheres);
+
+    // collision between spheres and box
+    collision_spheres_box(box, spheres);
+
+    // collision between spheres and cloth
+    collision_sphere_cloth(cloth, spheres);
+}
+
+void simulation_update_spheres(cloth_structure& cloth, std::vector<sphere_structure>& spheres, float dt){
+    // update spheres position, velocity. collision b/t spheres. contact with cloth
     size_t const N_edge = cloth.N_samples_edge(); // number of vertices in one dimension of the grid
     vec3 const g_scale = 0.05f * g;
-    if(!parameters.is_connecting){
-        //std::cout << "fall freely"<<std::endl;
-        falling_sphere.v = falling_sphere.v + dt * g_scale;
-        falling_sphere.p = falling_sphere.p + dt * falling_sphere.v;
-        //std::cout << "no extension, v=" << falling_sphere.v << std::endl;
-        float v_dot_sn = dot(falling_sphere.v, cloth.surface_normal);
-        parameters.need_collision_detect = v_dot_sn <= 0 && std::abs(v_dot_sn) >= epsilon; // if sphere is moving forward to the cloth plane
-    }
-    else {
-        // TODO: extend fall_sphere to multiple sphere, handle them together, put all corresponding data into one single data structure
-        const float K = 50.0f;
-        const float sphere_projection = dot(falling_sphere.p, cloth.surface_normal);
-        const float offset = sphere_first_projection - sphere_projection;
-        const cgp::vec3 f = K * std::max(offset, 0.0f) * cloth.surface_normal;
-        const cgp::vec3 a = f / falling_sphere.m + g_scale;
 
-        float v_projection = dot(falling_sphere.v, cloth.surface_normal);
-        float a_projection = dot(a, cloth.surface_normal);
-        if (std::abs(a_projection) <= epsilon && v_projection >= 0 && v_projection <= epsilon) {
-            //static contact
-            return;
-        }
-
-        if (parameters.is_extending) {
-            if (v_projection >= 0) {
-                parameters.is_extending = false;
-                parameters.need_collision_detect = false; // in bouncing-back, no need to collision detection anymore
-
-                //// mirror reflect
-                //vec3 v_n = v_n_length * cloth.surface_normal;
-                //vec3 v_parallel = falling_sphere.v - v_n;
-                //falling_sphere.v = v_parallel - v_n;
-
-                //detach all constraints particles
-                for (int k = 0; k < cloth.contact_info.size(); k++) {
-                    cloth.contact_info[k].is_contact = false;
-                }
-            }
-            else {
-                // using string force
-                falling_sphere.v = falling_sphere.v + a * dt;
-                falling_sphere.p = falling_sphere.p + falling_sphere.v * dt;
-            }
+    const bool cloth_sphere_connecting = false;
+    for (size_t i = 0; i < spheres.size(); i++) {
+        sphere_structure& sphere = spheres[i];
+        if (!sphere.can_move)
+            continue;
+        const bool is_connecting = sphere.connecting_particles.size() > 0;
+        if (!is_connecting) {
+            // following gravity
+            sphere.v = sphere.v + dt * g_scale;
+            sphere.p = sphere.p + dt * sphere.v;
+            float v_projection = dot(sphere.v, vec3(0, 0, 1)); // projected on gravity direction
+            sphere.detect_cloth_collision = v_projection <= 0 && std::abs(v_projection) >= epsilon; // if sphere is moving forward to the cloth plane
         }
         else {
-            if (offset <= 0) {
-                parameters.is_connecting = false; // finish bouncing
-                parameters.need_collision_detect = false; // in bouncing-back, no need to collision detection anymore
+            sphere.detect_cloth_collision = false; // in bouncing-back, no need to collision detection anymore
+
+            vec3 surface_normal(0, 0, 0);
+            for (auto index : sphere.connecting_particles) {
+                int2 uv = cloth.normal.offset_to_index(index);
+                surface_normal += cloth.normal(uv.x, uv.y);
+            }
+            surface_normal = normalize(surface_normal);
+            const float K = 50.0f;
+            const float p_projection_now = dot(sphere.p, surface_normal);
+            const float p_projected_origin = dot(sphere.p_at_contact, surface_normal);
+            const float offset = p_projected_origin - p_projection_now;
+            const cgp::vec3 f = K * std::max(offset, 0.0f) * surface_normal;
+            const cgp::vec3 a = f / sphere.m + g_scale;
+            float v_projection = dot(sphere.v, surface_normal);
+            float a_projection = dot(a, surface_normal);
+
+            bool condition_a = a_projection <= 0 && norm(sphere.v) <= epsilon; // key condition to stop oscillation
+            bool condition_b = std::abs(a_projection) <= epsilon && v_projection >= 0 && v_projection <= epsilon;
+            if (condition_a || condition_b) {
+                //static contact
+                continue;
+            }
+
+            // TODO: optimize below codes
+            const bool is_extending = v_projection < 0 && std::abs(v_projection) >= epsilon;
+            if (is_extending) {
+                // using string force
+                sphere.v = sphere.v + a * dt;
+                sphere.p = sphere.p + sphere.v * dt;
             }
             else {
-                // using string force
-                const float coef_loss = 0.98f;  // regression, must be regression, just for avoid oscillation
-                falling_sphere.v = coef_loss * falling_sphere.v + a * dt;
-                falling_sphere.p = falling_sphere.p + falling_sphere.v * dt;
+                if (offset <= 0) {
+                    //detach all constraints particles
+                    for (size_t index : sphere.connecting_particles) {
+                        cloth_contact_info& info = cloth.contact_info[index];
+                        // remove sphere index
+                        auto remove_it = std::remove_if(info.connecting_spheres.begin(), info.connecting_spheres.end(), [&](size_t e) { return e == i; });
+                        for (auto it = remove_it; it < info.connecting_spheres.end(); it++) {
+                            info.connecting_spheres.erase(it);
+                        }
+                    }
+                    sphere.connecting_particles.clear();
+                }
+                else {
+                    // using string force
+                    const float coef_loss = 0.98f;  // regression, must be regression, just for avoid oscillation
+                    sphere.v = coef_loss * sphere.v + a * dt;
+                    sphere.p = sphere.p + sphere.v * dt;
+                }
             }
         }
     }
 }
 
-void update_cloth_constraints(cloth_structure& cloth, particle_structure& falling_sphere){
-    size_t const N_edge = cloth.N_samples_edge(); // number of vertices in one dimension of the grid
-    for (int ku = 0; ku < N_edge; ++ku) {
-        for (int kv = 0; kv < N_edge; ++kv) {
-            int index = cloth.position.index_to_offset(ku, kv);
-            if(cloth.contact_info[index].is_contact){
-                vec3& p = cloth.position(ku, kv);
-                p = falling_sphere.p + cloth.contact_info[index].offset;
-            }
+void update_cloth_constraints(cloth_structure& cloth, std::vector<sphere_structure>& spheres){
+    for (int i = 0; i < spheres.size(); i++) {
+        const sphere_structure& sphere = spheres[i];
+        for (int j = 0; j < sphere.connecting_particles.size(); j++) {
+            size_t index = sphere.connecting_particles[j];
+            int2 uv = cloth.position.offset_to_index(index);
+            vec3& p = cloth.position(uv.x, uv.y);
+            p = sphere.p + cloth.contact_info[index].offset;
         }
     }
-
 }
 
 
@@ -254,13 +305,12 @@ void simulation_compute_force(cloth_structure& cloth, simulation_parameters cons
                 force(ku, kv) += force_wind;
             }
             
-
             force(ku, kv) += K * sum;
         }
     }
 }
 
-void simulation_numerical_integration(cloth_structure& cloth, particle_structure& falling_sphere, simulation_parameters const& parameters, float dt)
+void simulation_numerical_integration(cloth_structure& cloth, simulation_parameters const& parameters, float dt)
 {
     int const N_edge = cloth.N_samples_edge();
     float const m = parameters.mass_total / static_cast<float>(N_edge);
@@ -269,7 +319,7 @@ void simulation_numerical_integration(cloth_structure& cloth, particle_structure
     for (int ku = 0; ku < N_edge; ++ku) {
         for (int kv = 0; kv < N_edge; ++kv) {
             int index = cloth.position.index_to_offset(ku, kv);
-            if (cloth.contact_info[index].is_contact)
+            if (cloth.contact_info[index].connecting_spheres.size() > 0)
                 continue;
             vec3& v = cloth.velocity(ku, kv);
             vec3& p = cloth.position(ku, kv);
@@ -282,8 +332,7 @@ void simulation_numerical_integration(cloth_structure& cloth, particle_structure
 //Jingyi's work done
 }
 
-
-void simulation_apply_constraints(cloth_structure& cloth, particle_structure& falling_sphere, constraint_structure const& constraint, simulation_parameters const& parameters)
+void simulation_apply_constraints(cloth_structure& cloth, constraint_structure const& constraint)
 {
     // Fixed positions of the cloth
     for (auto const& it : constraint.fixed_sample) {
@@ -321,4 +370,22 @@ bool simulation_detect_divergence(cloth_structure const& cloth)
     }
 
     return simulation_diverged;
+}
+
+void rotate_box(bounding_box& box, cgp::inputs_interaction_parameters& inputs)
+{
+    vec2 const& p1 = inputs.mouse.position.current;
+    vec2 const& p0 = inputs.mouse.position.previous;
+
+    bool const event_valid = !inputs.mouse.on_gui;
+    bool const click_left = inputs.mouse.click.left;
+    bool const click_right = inputs.mouse.click.right;
+
+    if (event_valid) { // If the mouse cursor is not on the ImGui area
+
+        if (click_right)     // Rotation of the camera around its center
+            box.manipulator_rotate_trackball(p0, p1);
+        else if (click_left) // Translate/Pan the camera in the viewspace plane
+            box.manipulator_translate_in_plane(p1 - p0);
+    }
 }

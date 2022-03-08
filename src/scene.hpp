@@ -14,7 +14,6 @@ struct gui_parameters {
 
 // The structure of the custom scene
 struct scene_structure {
-	
 	// ****************************** //
 	// Elements and shapes of the scene
 	// ****************************** //
@@ -33,8 +32,14 @@ struct scene_structure {
 	cgp::mesh_drawable obstacle_sphere;
 	cgp::mesh_drawable sphere_fixed_position;
 
-	// TODO: create particles to rendering at a time[YUAN test]
-	cgp::mesh_drawable falling_sphere_drawable;
+	// Display sphere
+	cgp::mesh_drawable sphere_drawable;
+	// Display cube
+	cgp::segments_drawable cube_wireframe;
+	cgp::buffer<cgp::vec3> cube_wireframe_data = { {-1,-1,-1},{1,-1,-1}, {1,-1,-1},{1,1,-1}, {1,1,-1},{-1,1,-1}, {-1,1,-1},{-1,-1,-1},
+		{-1,-1,1} ,{1,-1,1},  {1,-1,1}, {1,1,1},  {1,1,1}, {-1,1,1},  {-1,1,1}, {-1,-1,1},
+		{-1,-1,-1},{-1,-1,1}, {1,-1,-1},{1,-1,1}, {1,1,-1},{1,1,1},   {-1,1,-1},{-1,1,1} };
+
 
 	// Cloth related structures
 	cloth_structure cloth;                     // The values of the position, velocity, forces, etc, stored as a 2D grid
@@ -46,8 +51,10 @@ struct scene_structure {
 	bool simulation_running = true;   // Boolean indicating if the simulation should be computed
 	GLuint cloth_texture;             // Storage of the texture ID used for the cloth
 
-	particle_structure falling_sphere;
-
+	std::vector<sphere_structure> spheres;
+	size_t cur_sphere_index;
+	
+	bounding_box box;
 
 	// ****************************** //
 	// Functions
@@ -58,8 +65,12 @@ struct scene_structure {
 	void display_gui(); // The display of the GUI, also called within the animation loop
 
 	void initialize_cloth(int N_sample); // Recompute the cloth from scratch
-
+	void initialize_box();
 	void initialize_spheres();
+	void create_sphere();
+	void emit_sphere();
+	void remove_sphere();
+	void keyboard_callback(const cgp::inputs_interaction_parameters& inputs);
 };
 
 

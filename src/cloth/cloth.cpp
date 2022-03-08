@@ -48,12 +48,8 @@ int cloth_structure::N_samples_edge() const
 void cloth_structure::initialize_contact_sphere(){
     contact_info.resize(position.size());
     for (int i = 0; i < position.size(); ++i) {
-        contact_info[i].is_contact = false;
+        contact_info[i].connecting_spheres.clear();
     }
-}
-
-void cloth_structure::initialize_surface_normal(cgp::vec3 normal) {
-    surface_normal = normal;
 }
 
 void cloth_structure::precompute_neighbor(int resolution1, int resolution2) 

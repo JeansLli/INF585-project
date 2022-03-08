@@ -3,9 +3,8 @@
 #include "cgp/cgp.hpp"
 
 struct cloth_contact_info {
-    bool is_contact;
     cgp::vec3 offset; // from sphere's center to point on surface
-    size_t sphere_index; // connecting sphere's index
+    std::vector<size_t> connecting_spheres; // indices of connecting spheres
 };
 
 // Stores the buffers representing the cloth vertices
@@ -18,7 +17,6 @@ struct cloth_structure
     cgp::grid_2D<cgp::vec3> normal;
 
     cgp::buffer<cloth_contact_info> contact_info;
-    cgp::vec3 surface_normal; // created by four fixed points of cloth
 
     cgp::buffer<cgp::uint3> triangle_connectivity;
 
@@ -32,7 +30,6 @@ struct cloth_structure
     
     void precompute_neighbor(int resolution1, int resolution2);
     void initialize_contact_sphere();
-    void initialize_surface_normal(cgp::vec3 normal);
 };
 
 

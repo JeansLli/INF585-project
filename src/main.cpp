@@ -1,4 +1,3 @@
-
 #include "cgp/cgp.hpp" // Give access to the complete CGP library
 #include <iostream> 
 
@@ -89,7 +88,13 @@ void mouse_move_callback(GLFWwindow* /*window*/, double xpos, double ypos)
 	inputs.mouse_position_update( { xpos, ypos } );
 
 	// Default trackball mode - change this behavior as you wish
-	camera_standard_behavior_rotation_trackball(scene.environment.camera, inputs);
+	bool const key_q = inputs.keyboard.key_q;
+	if (key_q) {
+		rotate_box(scene.box, inputs);
+	}
+	else {
+		camera_standard_behavior_rotation_trackball(scene.environment.camera, inputs);
+	}
 }
 
 // This function is called everytime a mouse button is clicked/released
@@ -102,6 +107,7 @@ void mouse_click_callback(GLFWwindow* /*window*/, int button, int action, int /*
 void keyboard_callback(GLFWwindow* /*window*/, int key, int , int action, int /*mods*/)
 {
 	inputs.keyboard.update_from_glfw_key(key, action);
+	scene.keyboard_callback(inputs);
 }
 
 // Standard initialization procedure
