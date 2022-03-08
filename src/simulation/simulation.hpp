@@ -5,6 +5,16 @@
 #include "../constraint/constraint.hpp"
 
 
+struct particle_structure
+{
+    cgp::vec3 p; // Position
+    cgp::vec3 v; // Speed
+
+    cgp::vec3 c; // Color
+    float r;     // Radius
+    float m;     // mass
+};
+
 struct simulation_parameters
 {
     float dt = 0.02f;        // time step for the numerical integration

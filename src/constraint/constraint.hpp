@@ -16,16 +16,6 @@ struct position_contraint {
 	cgp::vec3 position;
 };
 
-struct particle_structure
-{
-	cgp::vec3 p; // Position
-	cgp::vec3 v; // Speed
-
-	cgp::vec3 c; // Color
-	float r;     // Radius
-	float m;     // mass
-};
-
 struct constraint_structure
 {
 	float ground_z = 0.0f;                                   // Height of the flood

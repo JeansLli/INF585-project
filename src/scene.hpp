@@ -12,8 +12,6 @@ struct gui_parameters {
 	int N_sample_edge    = 20;  // number of samples of the cloth (the total number of vertices is N_sample_edge^2)
 };
 
-
-
 // The structure of the custom scene
 struct scene_structure {
 	
@@ -48,7 +46,6 @@ struct scene_structure {
 	bool simulation_running = true;   // Boolean indicating if the simulation should be computed
 	GLuint cloth_texture;             // Storage of the texture ID used for the cloth
 
-	//YUAN test, todo, click space to launch sphere
 	particle_structure falling_sphere;
 
 

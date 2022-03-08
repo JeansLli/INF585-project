@@ -5,6 +5,7 @@
 struct cloth_contact_info {
     bool is_contact;
     cgp::vec3 offset; // from sphere's center to point on surface
+    size_t sphere_index; // connecting sphere's index
 };
 
 // Stores the buffers representing the cloth vertices
