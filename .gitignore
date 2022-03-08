@@ -21,7 +21,7 @@ build/
 mono_crash.*
 
 # Build results
-[Dd]ebug/
+# [Dd]ebug/ --> just comment this line for INF585 project
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
