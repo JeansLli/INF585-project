@@ -1,5 +1,17 @@
-Algorithm pipeline:
-Step1: the sphere falls down
-Step2: when the sphere contacts the cloth, the speed of the sphere descends according to the Gaussian function
-Step3: when the speed of the sphere is close to 0, we reverse the process above
-Step4: when the sphere leaves the cloth, we consider the physical process again
+What this project has done:
+1. multiple spheres collide with cloth
+2. collision between spheres
+3. spheres collide with box
+4. rotation, translation of box from manipulation
+5. wind effect on cloth
+
+
+
+Spheres collide with cloth main procedure:
+
+1. simulation_collision_detection(cloth, spheres, box);
+2. simulation_update_spheres(cloth, spheres, parameters.dt / N_step);
+3. update_cloth_constraints(cloth, spheres);
+4. simulation_compute_force(cloth, parameters);
+5. simulation_numerical_integration(cloth, parameters, parameters.dt/N_step);
+6. simulation_apply_constraints(cloth, constraint);
