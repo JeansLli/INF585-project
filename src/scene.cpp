@@ -19,7 +19,7 @@ void scene_structure::display()
 	
 	// Elements of the scene: Obstacles (floor, sphere), and fixed position
 	// ***************************************** //
-	draw(obstacle_floor, environment);
+	//draw(obstacle_floor, environment);
 	draw(obstacle_sphere, environment);
 	for (auto const& c : constraint.fixed_sample)
 	{
@@ -105,9 +105,9 @@ void scene_structure::initialize()
 	global_frame.initialize(mesh_primitive_frame(), "Frame");
 	environment.camera.look_at({ 3.0f,2.0f,2.0f }, { 0,0,0 }, { 0,0,1 });
 
-	obstacle_floor.initialize(mesh_primitive_quadrangle({ -1.5f,-1.5f,0 }, { -1.5f,1.5f,0 }, { 1.5f,1.5f,0 }, { 1.5f,-1.5f,0 }));
-	obstacle_floor.texture = opengl_load_texture_image("assets/wood.jpg");
-	obstacle_floor.transform.translation = { 0,0,constraint.ground_z };
+	//obstacle_floor.initialize(mesh_primitive_quadrangle({ -1.5f,-1.5f,0 }, { -1.5f,1.5f,0 }, { 1.5f,1.5f,0 }, { 1.5f,-1.5f,0 }));
+	//obstacle_floor.texture = opengl_load_texture_image("assets/wood.jpg");
+	//obstacle_floor.transform.translation = { 0,0,constraint.ground_z };
 
 	sphere_drawable.initialize(mesh_primitive_sphere());
 	

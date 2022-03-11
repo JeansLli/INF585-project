@@ -28,7 +28,7 @@ struct scene_structure {
 	cgp::timer_basic timer;
 
 	// Display of the obstacles and constraints
-	cgp::mesh_drawable obstacle_floor;
+	//cgp::mesh_drawable obstacle_floor;
 	cgp::mesh_drawable obstacle_sphere;
 	cgp::mesh_drawable sphere_fixed_position;
 
