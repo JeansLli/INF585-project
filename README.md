@@ -18,3 +18,6 @@ Spheres collide with cloth main procedure:
 4. simulation_compute_force(cloth, parameters);
 5. simulation_numerical_integration(cloth, parameters, parameters.dt/N_step);
 6. simulation_apply_constraints(cloth, constraint);
+
+
+Results of video can be found at this link: https://youtu.be/TIH5Pa9TN4A
