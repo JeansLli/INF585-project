@@ -1,3 +1,6 @@
+# INF585-project
+This is project is based on code-base from computer animation course, to implement the simulation of cloth, sphere, box and their collision between themselves.
+
 What this project has done:
 1. multiple spheres collide with cloth
 2. collision between spheres
